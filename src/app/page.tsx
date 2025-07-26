@@ -1,103 +1,114 @@
-import Image from "next/image";
+'use client';
+
+import { useSession, signIn, signOut } from 'next-auth/react';
+import { useState } from 'react';
+import jsPDF from 'jspdf';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { data: session } = useSession();
+  const [planText, setPlanText] = useState('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    const lines = doc.splitTextToSize(planText, 180);
+    doc.text(lines, 10, 10);
+    doc.save("learning_plan.pdf");
+  };
+
+  return (
+    <main className="min-h-screen bg-gray-100 flex flex-col items-center justify-center px-4 py-10">
+      <div className="w-full max-w-xl bg-white shadow-lg rounded-2xl p-6 space-y-6">
+        <h1 className="text-2xl font-bold text-center text-indigo-600">🧠 Personal AI Planner</h1>
+
+        {session ? (
+          <>
+            <h2 className="text-lg text-gray-700 text-center">
+              Welcome, <span className="font-semibold">{session.user?.name}</span>!
+            </h2>
+            <button
+              onClick={() => signOut()}
+              className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded w-full"
+            >
+              🔒 Sign out
+            </button>
+
+            {/* 🧠 AI Planner Form */}
+            <form
+              className="space-y-4 mt-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                console.log("Form submitted");
+                const formData = new FormData(e.currentTarget);
+                const accessToken = session?.accessToken;
+
+                const response = await fetch('/api/generateplan/', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    goal: formData.get('goal'),
+                    weeks: Number(formData.get('weeks')),
+                    hoursPerDay: Number(formData.get('hoursPerDay')),
+                    startDate: formData.get('startDate'),
+                    timeOfDay: formData.get('timeOfDay'),
+                    skipWeekends: formData.get('skipWeekends') === 'on',
+                    preferVideo: formData.get('preferVideo') === 'on',
+                    accessToken,
+                  }),
+                  headers: { 'Content-Type': 'application/json' },
+                });
+
+                const result = await response.json();
+                setPlanText(result.planText);
+                alert("✅ Plan created and added to calendar!");
+                console.log(result.planText);
+              }}
+            >
+              <input name="goal" placeholder="Learning Goal" className="w-full border p-2 rounded" required />
+              <input name="weeks" type="number" min="1" max="12" className="w-full border p-2 rounded" placeholder="Number of weeks" required />
+              <input name="hoursPerDay" type="number" min="1" max="6" className="w-full border p-2 rounded" placeholder="Hours per day" required />
+              <input name="startDate" type="date" className="w-full border p-2 rounded" required />
+              <input name="timeOfDay" type="time" className="w-full border p-2 rounded" required />
+
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="skipWeekends" />
+                Skip weekends
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" name="preferVideo" />
+                Prefer video resources
+              </label>
+
+              <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded">
+                🚀 Generate Learning Plan
+              </button>
+            </form>
+
+            {/* 📘 Display Plan */}
+            {planText && (
+              <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-300">
+                <h3 className="text-lg font-semibold text-indigo-700 mb-2">📘 Your AI-Powered Learning Plan</h3>
+                <pre className="whitespace-pre-wrap text-sm text-gray-800">{planText}</pre>
+
+                <button
+                  onClick={downloadPDF}
+                  className="mt-4 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded"
+                >
+                  📄 Download Plan as PDF
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="text-gray-700 text-center">You're not signed in</p>
+            <button
+              onClick={() => signIn('google')}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded w-full"
+            >
+              🔐 Sign in with Google
+            </button>
+          </>
+        )}
+      </div>
+    </main>
   );
 }
